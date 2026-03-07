@@ -253,7 +253,7 @@ func (s *BuildService) cloneGitContextInternal(ctx context.Context, repositoryUR
 		return s.gitRepository.gitClient.Clone(ctx, repositoryURL, ref, authConfig)
 	}
 
-	return buildgit.NewClient("").Clone(ctx, repositoryURL, ref, authConfig)
+	return "", errors.New("git repository service not available")
 }
 
 func (s *BuildService) cleanupGitContextInternal(repoPath string) error {
@@ -266,7 +266,7 @@ func (s *BuildService) cleanupGitContextInternal(repoPath string) error {
 	if s.gitRepository != nil && s.gitRepository.gitClient != nil {
 		return s.gitRepository.gitClient.Cleanup(repoPath)
 	}
-	return buildgit.NewClient("").Cleanup(repoPath)
+	return errors.New("git repository service not available")
 }
 
 func writeBuildProgressStatusInternal(progressWriter io.Writer, serviceName, status string) {

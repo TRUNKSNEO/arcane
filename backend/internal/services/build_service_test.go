@@ -143,6 +143,20 @@ func TestBuildService_ResolveBuildRequest_RejectsUnsupportedRemoteContext(t *tes
 	require.NoError(t, cleanup())
 }
 
+func TestBuildService_ResolveBuildRequest_RequiresGitRepositoryServiceForRemoteContext(t *testing.T) {
+	svc := &BuildService{}
+
+	_, cleanup, err := svc.resolveBuildRequestInternal(
+		context.Background(),
+		image.BuildRequest{ContextDir: "https://github.com/getarcaneapp/arcane.git#main"},
+		nil,
+		"",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "git repository service not available")
+	require.NoError(t, cleanup())
+}
+
 func TestBuildService_ResolveBuildRequest_UsesSavedGitCredentials(t *testing.T) {
 	_, db := setupImageServiceAuthTest(t)
 	require.NoError(t, db.AutoMigrate(&models.GitRepository{}))
