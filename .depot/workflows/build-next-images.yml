@@ -76,7 +76,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: '~> 2'
-          args: release --clean --skip=sign,announce,validate,nfpm,homebrew
+          args: release --clean --skip=sign,announce,validate,nfpm,homebrew --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_NEXT: 'true'
