@@ -196,18 +196,32 @@
 	<Card.Header icon={FileTextIcon}>
 		<div class="flex flex-1 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 			<div class="flex flex-col gap-1.5">
-				<div class="flex items-center gap-2">
-					<Card.Title>
-						<h2>
-							{m.containers_logs_title()}
-						</h2>
-					</Card.Title>
-					{#if isStreaming}
-						<div class="flex items-center gap-2">
-							<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
-							<span class="text-xs font-semibold text-green-600 sm:text-sm">{m.common_live()}</span>
-						</div>
-					{/if}
+				<div class="flex items-start justify-between gap-3 lg:block">
+					<div class="flex items-center gap-2">
+						<Card.Title>
+							<h2>
+								{m.containers_logs_title()}
+							</h2>
+						</Card.Title>
+						{#if isStreaming}
+							<div class="flex items-center gap-2">
+								<div class="size-2 animate-pulse rounded-full bg-green-500"></div>
+								<span class="text-xs font-semibold text-green-600 sm:text-sm">{m.common_live()}</span>
+							</div>
+						{/if}
+					</div>
+					<LogControls
+						bind:autoScroll
+						bind:autoStartLogs
+						bind:showParsedJson
+						mobileLayout="full"
+						showDesktop={false}
+						{isStreaming}
+						disabled={!containerId}
+						onStart={handleStart}
+						onStop={handleStop}
+						onRefresh={handleRefresh}
+					/>
 				</div>
 				<Card.Description>{m.containers_logs_description()}</Card.Description>
 			</div>
@@ -215,6 +229,7 @@
 				bind:autoScroll
 				bind:autoStartLogs
 				bind:showParsedJson
+				mobileLayout="none"
 				{isStreaming}
 				disabled={!containerId}
 				onStart={handleStart}
