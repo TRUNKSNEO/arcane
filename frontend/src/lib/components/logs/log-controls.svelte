@@ -89,7 +89,6 @@
 						class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 						onclick={onStop}
 						aria-label={m.common_stop()}
-						title={m.common_stop()}
 					/>
 				{:else}
 					<ArcaneButton
@@ -99,7 +98,6 @@
 						class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 						onclick={onStart}
 						aria-label={m.common_start()}
-						title={m.common_start()}
 						{disabled}
 					/>
 				{/if}
@@ -110,7 +108,6 @@
 					class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 					onclick={onRefresh}
 					aria-label={m.log_refresh_aria_label()}
-					title={m.common_refresh()}
 				/>
 
 				<DropdownMenu.Root>
@@ -123,7 +120,6 @@
 								size="icon"
 								class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 								aria-label={m.common_open_menu()}
-								title={m.common_open_menu()}
 							>
 								<span class="sr-only">{m.common_open_menu()}</span>
 								<EllipsisIcon class="size-4" />
@@ -187,7 +183,6 @@
 						class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 						onclick={onStop}
 						aria-label={m.common_stop()}
-						title={m.common_stop()}
 					/>
 				{:else}
 					<ArcaneButton
@@ -197,7 +192,6 @@
 						class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 						onclick={onStart}
 						aria-label={m.common_start()}
-						title={m.common_start()}
 						{disabled}
 					/>
 				{/if}
@@ -208,7 +202,6 @@
 					class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 					onclick={onRefresh}
 					aria-label={m.log_refresh_aria_label()}
-					title={m.common_refresh()}
 				/>
 			</div>
 		{:else if mobileLayout === 'menu-only'}
@@ -223,7 +216,6 @@
 								size="icon"
 								class="text-muted-foreground hover:text-foreground size-8 shrink-0"
 								aria-label={m.common_open_menu()}
-								title={m.common_open_menu()}
 							>
 								<span class="sr-only">{m.common_open_menu()}</span>
 								<EllipsisIcon class="size-4" />
