@@ -38,6 +38,16 @@ async function getCodeMirrorValue(editor: Locator) {
 	});
 }
 
+async function openDropdownMenu(page: Page, trigger: Locator) {
+	await expect(trigger).toBeVisible();
+	await trigger.click();
+
+	const menu = page.locator('[data-slot="dropdown-menu-content"]:visible').last();
+	await expect(menu).toBeVisible();
+
+	return menu;
+}
+
 function getPathname(url: string): string {
 	return url.replace(/^[a-z]+:\/\/[^/]+/i, '').split(/[?#]/)[0] || '/';
 }
@@ -116,8 +126,8 @@ async function destroyProjectByNameViaUI(page: Page, projectName: string) {
 		return;
 	}
 
-	await row.getByRole('button', { name: 'Open menu' }).click();
-	await page.getByRole('menuitem', { name: 'Destroy', exact: true }).click();
+	const menu = await openDropdownMenu(page, row.getByRole('button', { name: 'Open menu' }));
+	await menu.getByRole('menuitem', { name: 'Destroy', exact: true }).click();
 
 	const dialog = page.getByRole('dialog');
 	await expect(dialog).toBeVisible();
@@ -180,23 +190,21 @@ test.describe('Projects Page', () => {
 
 		await page.waitForLoadState('networkidle');
 		const firstRow = page.locator('tbody tr').first();
-		const menuButton = firstRow.getByRole('button', { name: 'Open menu' });
-		await expect(menuButton).toBeVisible();
-		await menuButton.click();
+		const menu = await openDropdownMenu(page, firstRow.getByRole('button', { name: 'Open menu' }));
 
-		await expect(page.getByRole('menuitem', { name: 'Edit' })).toBeVisible();
+		await expect(menu.getByRole('menuitem', { name: 'Edit' })).toBeVisible();
 		// Check for at least one of the state action buttons (Up/Down/Restart)
-		const upItem = page.getByRole('menuitem', { name: 'Up', exact: true });
-		const downItem = page.getByRole('menuitem', { name: 'Down', exact: true });
-		const restartItem = page.getByRole('menuitem', {
+		const upItem = menu.getByRole('menuitem', { name: 'Up', exact: true });
+		const downItem = menu.getByRole('menuitem', { name: 'Down', exact: true });
+		const restartItem = menu.getByRole('menuitem', {
 			name: 'Restart',
 			exact: true
 		});
 		const hasStateAction =
 			(await upItem.count()) > 0 || (await downItem.count()) > 0 || (await restartItem.count()) > 0;
 		expect(hasStateAction).toBe(true);
-		await expect(page.getByRole('menuitem', { name: 'Pull & Redeploy' })).toBeVisible();
-		await expect(page.getByRole('menuitem', { name: 'Destroy' })).toBeVisible();
+		await expect(menu.getByRole('menuitem', { name: 'Pull & Redeploy' })).toBeVisible();
+		await expect(menu.getByRole('menuitem', { name: 'Destroy' })).toBeVisible();
 	});
 
 	test('should navigate to project details when project name is clicked', async ({ page }) => {
@@ -580,14 +588,22 @@ test.describe('New Compose Project Page', () => {
 
 			const searchInput = page.getByPlaceholder('Search…');
 			await expect(searchInput).toBeVisible();
+			const filteredProjectsResponse = page.waitForResponse((response) => {
+				if (response.request().method() !== 'GET') return false;
+				return (
+					/\/api\/environments\/[^/]+\/projects(?:\?|$)/.test(response.url()) &&
+					response.url().includes(`search=${projectName}`)
+				);
+			});
 			await searchInput.fill(projectName);
+			await filteredProjectsResponse;
 
 			const row = page.locator('tbody tr').filter({ hasText: projectName }).first();
 			await expect(row).toBeVisible();
-			await row.getByRole('button', { name: 'Open menu' }).click();
-			const redeployMenuItem = page.getByRole('menuitem', { name: 'Pull & Redeploy' }).first();
+			const menu = await openDropdownMenu(page, row.getByRole('button', { name: 'Open menu' }));
+			const redeployMenuItem = menu.getByRole('menuitem', { name: 'Pull & Redeploy' });
 			await expect(redeployMenuItem).toBeVisible();
-			await redeployMenuItem.click({ force: true });
+			await redeployMenuItem.click();
 
 			await expect
 				.poll(() => redeployRequestStartedAt, {
