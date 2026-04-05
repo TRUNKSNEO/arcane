@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -36,6 +37,7 @@ var ErrSwarmManagerRequired = errors.New("swarm manager access required")
 
 const swarmNodeIdentityProbeConcurrency = 5
 const KVKeySwarmEnabled = "swarm.enabled"
+const defaultSwarmListenAddr = "0.0.0.0:2377"
 
 // SwarmService provides Docker Swarm related operations.
 type SwarmService struct {
@@ -867,6 +869,11 @@ func (s *SwarmService) InitSwarm(ctx context.Context, req swarmtypes.SwarmInitRe
 		return nil, fmt.Errorf("failed to connect to Docker: %w", err)
 	}
 
+	spec, err := decodeSwarmSpecInternal(req.Spec)
+	if err != nil {
+		return nil, err
+	}
+
 	defaultAddrPool := make([]netip.Prefix, 0, len(req.DefaultAddrPool))
 	for _, raw := range req.DefaultAddrPool {
 		prefix, err := netip.ParsePrefix(raw)
@@ -877,12 +884,12 @@ func (s *SwarmService) InitSwarm(ctx context.Context, req swarmtypes.SwarmInitRe
 	}
 
 	initResult, err := dockerClient.SwarmInit(ctx, dockerclient.SwarmInitOptions{
-		ListenAddr:       req.ListenAddr,
+		ListenAddr:       defaultSwarmListenAddrInternal(req.ListenAddr),
 		AdvertiseAddr:    req.AdvertiseAddr,
 		DataPathAddr:     req.DataPathAddr,
 		DataPathPort:     req.DataPathPort,
 		ForceNewCluster:  req.ForceNewCluster,
-		Spec:             req.Spec,
+		Spec:             spec,
 		AutoLockManagers: req.AutoLockManagers,
 		Availability:     req.Availability,
 		DefaultAddrPool:  defaultAddrPool,
@@ -904,7 +911,7 @@ func (s *SwarmService) JoinSwarm(ctx context.Context, req swarmtypes.SwarmJoinRe
 	}
 
 	if _, err := dockerClient.SwarmJoin(ctx, dockerclient.SwarmJoinOptions{
-		ListenAddr:    req.ListenAddr,
+		ListenAddr:    defaultSwarmListenAddrInternal(req.ListenAddr),
 		AdvertiseAddr: req.AdvertiseAddr,
 		DataPathAddr:  req.DataPathAddr,
 		RemoteAddrs:   req.RemoteAddrs,
@@ -1047,9 +1054,14 @@ func (s *SwarmService) UpdateSwarmSpec(ctx context.Context, req swarmtypes.Swarm
 		version = infoResult.Swarm.Version.Index
 	}
 
+	spec, err := decodeSwarmSpecInternal(req.Spec)
+	if err != nil {
+		return err
+	}
+
 	if _, err := dockerClient.SwarmUpdate(ctx, dockerclient.SwarmUpdateOptions{
 		Version:                swarm.Version{Index: version},
-		Spec:                   req.Spec,
+		Spec:                   spec,
 		RotateWorkerToken:      req.RotateWorkerToken,
 		RotateManagerToken:     req.RotateManagerToken,
 		RotateManagerUnlockKey: req.RotateManagerUnlockKey,
@@ -1830,6 +1842,33 @@ func decodeConfigSpecInternal(raw json.RawMessage) (swarm.ConfigSpec, error) {
 	}
 
 	return spec, nil
+}
+
+func decodeSwarmSpecInternal(raw json.RawMessage) (swarm.Spec, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return swarm.Spec{}, errors.New("swarm spec is required")
+	}
+
+	var spec swarm.Spec
+	if err := json.Unmarshal(trimmed, &spec); err != nil {
+		return swarm.Spec{}, fmt.Errorf("failed to parse swarm spec: %w", err)
+	}
+
+	if spec.Labels == nil {
+		spec.Labels = map[string]string{}
+	}
+
+	return spec, nil
+}
+
+func defaultSwarmListenAddrInternal(listenAddr string) string {
+	trimmed := strings.TrimSpace(listenAddr)
+	if trimmed == "" {
+		return defaultSwarmListenAddr
+	}
+
+	return trimmed
 }
 
 func decodeSecretSpecInternal(raw json.RawMessage) (swarm.SecretSpec, error) {
