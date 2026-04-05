@@ -275,6 +275,22 @@ func TestSettingsService_GetSettings_EnvOverride_TrivyRuntimeSecurity(t *testing
 	require.True(t, settings2.TrivyPrivileged.IsTrue())
 }
 
+func TestSettingsService_GetStringSetting_EnvOverride_SwarmStackSourcesDirectory(t *testing.T) {
+	ctx := context.Background()
+	db := setupSettingsTestDB(t)
+
+	svc, err := NewSettingsService(ctx, db)
+	require.NoError(t, err)
+	require.NoError(t, svc.UpdateSetting(ctx, "swarmStackSourcesDirectory", "/tmp/swarm-from-db"))
+
+	require.Equal(t, "/tmp/swarm-from-db", svc.GetStringSetting(ctx, "swarmStackSourcesDirectory", "/fallback"))
+
+	t.Setenv("SWARM_STACK_SOURCES_DIRECTORY", "/mnt/swarm-from-env")
+
+	require.Equal(t, "/mnt/swarm-from-env", svc.GetStringSetting(ctx, "swarmStackSourcesDirectory", "/fallback"))
+	require.Equal(t, "/tmp/swarm-from-db", svc.GetSettingsConfig().SwarmStackSourcesDirectory.Value)
+}
+
 func TestSettingsService_isEnvOverrideActiveInternal(t *testing.T) {
 	ctx := context.Background()
 	db := setupSettingsTestDB(t)

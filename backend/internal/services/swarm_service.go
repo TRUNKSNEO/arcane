@@ -748,7 +748,7 @@ func (s *SwarmService) ListTasksPaginated(ctx context.Context, params pagination
 	return result.Items, paginationResp, nil
 }
 
-func (s *SwarmService) ListStacksPaginated(ctx context.Context, params pagination.QueryParams) ([]swarmtypes.StackSummary, pagination.Response, error) {
+func (s *SwarmService) ListStacksPaginated(ctx context.Context, environmentID string, params pagination.QueryParams) ([]swarmtypes.StackSummary, pagination.Response, error) {
 	if err := s.ensureSwarmManagerInternal(ctx); err != nil {
 		return nil, pagination.Response{}, err
 	}
@@ -791,6 +791,18 @@ func (s *SwarmService) ListStacksPaginated(ctx context.Context, params paginatio
 		if service.UpdatedAt.After(entry.UpdatedAt) {
 			entry.UpdatedAt = service.UpdatedAt
 		}
+	}
+
+	persistedStacks, err := s.listPersistedStackSourcesInternal(ctx, environmentID)
+	if err != nil {
+		return nil, pagination.Response{}, err
+	}
+	for stackName, persisted := range persistedStacks {
+		if _, exists := stacks[stackName]; exists {
+			continue
+		}
+		stack := persisted
+		stacks[stackName] = &stack
 	}
 
 	items := make([]swarmtypes.StackSummary, 0, len(stacks))
@@ -1226,7 +1238,6 @@ func (s *SwarmService) ListNodeTasksPaginated(ctx context.Context, nodeID string
 }
 
 func (s *SwarmService) GetStack(ctx context.Context, environmentID, stackName string) (*swarmtypes.StackInspect, error) {
-	_ = environmentID
 	if err := s.ensureSwarmManagerInternal(ctx); err != nil {
 		return nil, err
 	}
@@ -1241,7 +1252,21 @@ func (s *SwarmService) GetStack(ctx context.Context, environmentID, stackName st
 		return nil, err
 	}
 	if len(services) == 0 {
-		return nil, cerrdefs.ErrNotFound
+		persisted, err := s.getPersistedStackSourceSummaryInternal(ctx, environmentID, stackName)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return nil, cerrdefs.ErrNotFound
+			}
+			return nil, err
+		}
+
+		return &swarmtypes.StackInspect{
+			Name:      persisted.Name,
+			Namespace: persisted.Namespace,
+			Services:  persisted.Services,
+			CreatedAt: persisted.CreatedAt,
+			UpdatedAt: persisted.UpdatedAt,
+		}, nil
 	}
 
 	createdAt := services[0].CreatedAt
@@ -1302,6 +1327,83 @@ func (s *SwarmService) GetStackSource(ctx context.Context, environmentID, stackN
 	}, nil
 }
 
+func (s *SwarmService) listPersistedStackSourcesInternal(ctx context.Context, environmentID string) (map[string]swarmtypes.StackSummary, error) {
+	_, environmentDir, err := s.resolveSwarmStackSourceEnvironmentDirInternal(ctx, environmentID)
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(environmentDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return map[string]swarmtypes.StackSummary{}, nil
+		}
+		return nil, fmt.Errorf("failed to list swarm stack source directories: %w", err)
+	}
+
+	stacks := make(map[string]swarmtypes.StackSummary, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		summary, err := s.buildPersistedStackSourceSummaryInternal(filepath.Join(environmentDir, entry.Name()), entry.Name())
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+
+		stacks[summary.Name] = *summary
+	}
+
+	return stacks, nil
+}
+
+func (s *SwarmService) getPersistedStackSourceSummaryInternal(ctx context.Context, environmentID, stackName string) (*swarmtypes.StackSummary, error) {
+	_, stackSourceDir, err := s.resolveSwarmStackSourceDirInternal(ctx, environmentID, stackName)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.buildPersistedStackSourceSummaryInternal(stackSourceDir, stackName)
+}
+
+func (s *SwarmService) buildPersistedStackSourceSummaryInternal(stackSourceDir, stackName string) (*swarmtypes.StackSummary, error) {
+	composeInfo, err := os.Stat(filepath.Join(stackSourceDir, swarmStackComposeFilename))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, cerrdefs.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to stat swarm stack compose source: %w", err)
+	}
+
+	createdAt := composeInfo.ModTime()
+	updatedAt := composeInfo.ModTime()
+
+	envInfo, err := os.Stat(filepath.Join(stackSourceDir, swarmStackEnvFilename))
+	if err == nil {
+		if envInfo.ModTime().Before(createdAt) {
+			createdAt = envInfo.ModTime()
+		}
+		if envInfo.ModTime().After(updatedAt) {
+			updatedAt = envInfo.ModTime()
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("failed to stat swarm stack env source: %w", err)
+	}
+
+	return &swarmtypes.StackSummary{
+		ID:        stackName,
+		Name:      stackName,
+		Namespace: stackName,
+		Services:  0,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}, nil
+}
+
 func (s *SwarmService) RemoveStack(ctx context.Context, environmentID, stackName string) error {
 	if err := s.ensureSwarmManagerInternal(ctx); err != nil {
 		return err
@@ -1322,7 +1424,14 @@ func (s *SwarmService) RemoveStack(ctx context.Context, environmentID, stackName
 		return err
 	}
 	if len(services) == 0 {
-		return cerrdefs.ErrNotFound
+		if _, err := s.getPersistedStackSourceSummaryInternal(ctx, environmentID, stackName); err != nil {
+			if cerrdefs.IsNotFound(err) {
+				return cerrdefs.ErrNotFound
+			}
+			return err
+		}
+
+		return s.deleteStackSourceInternal(ctx, environmentID, stackName)
 	}
 
 	serviceIDs := make(map[string]struct{}, len(services))
@@ -1978,6 +2087,20 @@ func (s *SwarmService) resolveSwarmStackSourceDirInternal(ctx context.Context, e
 		return "", "", errors.New("invalid stack name")
 	}
 
+	rootDir, environmentDir, err := s.resolveSwarmStackSourceEnvironmentDirInternal(ctx, environmentID)
+	if err != nil {
+		return "", "", err
+	}
+
+	stackSourceDir := filepath.Clean(filepath.Join(environmentDir, normalizedStackName))
+	if !appfs.IsSafeSubdirectory(rootDir, stackSourceDir) {
+		return "", "", errors.New("swarm stack source path escapes storage root")
+	}
+
+	return rootDir, stackSourceDir, nil
+}
+
+func (s *SwarmService) resolveSwarmStackSourceEnvironmentDirInternal(ctx context.Context, environmentID string) (string, string, error) {
 	normalizedEnvironmentID := appfs.SanitizeProjectName(normalizeSwarmEnvironmentIDInternal(environmentID))
 	if normalizedEnvironmentID == "" || strings.Trim(normalizedEnvironmentID, "_") == "" {
 		normalizedEnvironmentID = "0"
@@ -1989,12 +2112,12 @@ func (s *SwarmService) resolveSwarmStackSourceDirInternal(ctx context.Context, e
 	}
 	rootDir := appfs.ResolveConfiguredContainerDirectory(configuredRootDir, defaultSwarmStackSourceRootDir)
 
-	stackSourceDir := filepath.Clean(filepath.Join(rootDir, normalizedEnvironmentID, normalizedStackName))
-	if !appfs.IsSafeSubdirectory(rootDir, stackSourceDir) {
-		return "", "", errors.New("swarm stack source path escapes storage root")
+	environmentDir := filepath.Clean(filepath.Join(rootDir, normalizedEnvironmentID))
+	if !appfs.IsSafeSubdirectory(rootDir, environmentDir) {
+		return "", "", errors.New("swarm stack source environment path escapes storage root")
 	}
 
-	return rootDir, stackSourceDir, nil
+	return rootDir, environmentDir, nil
 }
 
 func (s *SwarmService) ensureSwarmManagerInternal(ctx context.Context) error {

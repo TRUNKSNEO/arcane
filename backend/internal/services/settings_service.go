@@ -334,9 +334,14 @@ func (s *SettingsService) isEnvOverrideActiveInternal(key string) bool {
 }
 
 func (s *SettingsService) GetSettings(ctx context.Context) (*models.Settings, error) {
+	settings := s.getEffectiveSettingsConfig(ctx)
+	return settings, nil
+}
+
+func (s *SettingsService) getEffectiveSettingsConfig(ctx context.Context) *models.Settings {
 	settings := s.GetSettingsConfig().Clone()
 	s.applyEnvOverrides(ctx, settings)
-	return settings, nil
+	return settings
 }
 
 // MigrateOidcConfigToFields migrates the legacy JSON authOidcConfig to individual fields,
@@ -881,7 +886,7 @@ func (s *SettingsService) setupInstanceID(ctx context.Context) error {
 }
 
 func (s *SettingsService) GetBoolSetting(ctx context.Context, key string, defaultValue bool) bool {
-	cfg := s.GetSettingsConfig()
+	cfg := s.getEffectiveSettingsConfig(ctx)
 	val, _, _, err := cfg.FieldByKey(key)
 	if err != nil || val == "" {
 		return defaultValue
@@ -894,7 +899,7 @@ func (s *SettingsService) GetBoolSetting(ctx context.Context, key string, defaul
 }
 
 func (s *SettingsService) GetIntSetting(ctx context.Context, key string, defaultValue int) int {
-	cfg := s.GetSettingsConfig()
+	cfg := s.getEffectiveSettingsConfig(ctx)
 	val, _, _, err := cfg.FieldByKey(key)
 	if err != nil || val == "" {
 		return defaultValue
@@ -907,7 +912,7 @@ func (s *SettingsService) GetIntSetting(ctx context.Context, key string, default
 }
 
 func (s *SettingsService) GetStringSetting(ctx context.Context, key, defaultValue string) string {
-	cfg := s.GetSettingsConfig()
+	cfg := s.getEffectiveSettingsConfig(ctx)
 	val, _, _, err := cfg.FieldByKey(key)
 	if err != nil || val == "" {
 		return defaultValue

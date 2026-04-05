@@ -1132,7 +1132,7 @@ func (h *SwarmHandler) ListStacks(ctx context.Context, input *ListSwarmStacksInp
 	}
 
 	params := buildSwarmQueryParams(input.Search, input.Sort, input.Order, input.Start, input.Limit)
-	items, paginationResp, err := h.swarmService.ListStacksPaginated(ctx, params)
+	items, paginationResp, err := h.swarmService.ListStacksPaginated(ctx, input.EnvironmentID, params)
 	if err != nil {
 		return nil, mapSwarmServiceError(err, (&common.SwarmStackListError{Err: err}).Error())
 	}
