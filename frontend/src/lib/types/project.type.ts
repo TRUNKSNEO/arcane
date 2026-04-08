@@ -48,7 +48,7 @@ export interface ProjectService {
 export interface IncludeFile {
 	path: string;
 	relativePath: string;
-	content: string;
+	content?: string;
 }
 
 // RuntimeService contains live container status information
@@ -85,6 +85,7 @@ export interface Project {
 	services?: ProjectService[];
 	runtimeServices?: RuntimeService[];
 	composeContent?: string;
+	composeFileName?: string;
 	envContent?: string;
 	includeFiles?: IncludeFile[];
 	directoryFiles?: IncludeFile[];

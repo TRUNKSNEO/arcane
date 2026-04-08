@@ -643,6 +643,7 @@ func (s *ProjectService) GetProjectDetails(ctx context.Context, projectID string
 	// Load compose project for service definitions
 	composeFile, _ := projects.DetectComposeFile(proj.Path)
 	if composeFile != "" {
+		resp.ComposeFileName = filepath.Base(composeFile)
 		s.enrichWithComposeServiceConfigs(ctx, proj, composeFile, &resp)
 	}
 
@@ -674,6 +675,82 @@ func (s *ProjectService) GetProjectDetails(ctx context.Context, projectID string
 	return resp, nil
 }
 
+func (s *ProjectService) GetProjectFileContent(ctx context.Context, projectID, relativePath string) (project.IncludeFile, error) {
+	proj, err := s.GetProjectFromDatabaseByID(ctx, projectID)
+	if err != nil {
+		return project.IncludeFile{}, err
+	}
+	if strings.TrimSpace(relativePath) == "" {
+		return project.IncludeFile{}, &common.ProjectFileBadRequestError{Err: fmt.Errorf("relative path is required")}
+	}
+
+	composeFile, detectErr := projects.DetectComposeFile(proj.Path)
+	if detectErr == nil {
+		projectsDirSetting := s.settingsService.GetStringSetting(ctx, "projectsDirectory", "/app/data/projects")
+		projectsDirectory, _ := projects.GetProjectsDirectory(ctx, strings.TrimSpace(projectsDirSetting))
+		autoInjectEnv := s.settingsService.GetBoolSetting(ctx, "autoInjectEnv", false)
+		envLoader := projects.NewEnvLoader(projectsDirectory, filepath.Dir(composeFile), autoInjectEnv)
+		envMap, _, _ := envLoader.LoadEnvironment(ctx)
+
+		includes, parseErr := projects.ParseIncludes(composeFile, envMap, true)
+		if parseErr == nil {
+			for _, inc := range includes {
+				if inc.RelativePath == relativePath {
+					return project.IncludeFile{
+						Path:         inc.Path,
+						RelativePath: inc.RelativePath,
+						Content:      inc.Content,
+					}, nil
+				}
+			}
+		}
+	}
+
+	fullPath := filepath.Join(proj.Path, relativePath)
+	absProjectPath, err := filepath.Abs(proj.Path)
+	if err != nil {
+		return project.IncludeFile{}, fmt.Errorf("failed to resolve project path: %w", err)
+	}
+	absFilePath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return project.IncludeFile{}, fmt.Errorf("failed to resolve file path: %w", err)
+	}
+	if !projects.IsSafeSubdirectory(absProjectPath, absFilePath) {
+		return project.IncludeFile{}, &common.ProjectFileForbiddenError{Err: fmt.Errorf("file path is outside project directory")}
+	}
+
+	info, err := os.Lstat(absFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return project.IncludeFile{}, &common.ProjectFileNotFoundError{}
+		}
+		return project.IncludeFile{}, fmt.Errorf("failed to stat file: %w", err)
+	}
+	if info.IsDir() {
+		return project.IncludeFile{}, &common.ProjectFileBadRequestError{Err: fmt.Errorf("path refers to a directory")}
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return project.IncludeFile{}, &common.ProjectFileForbiddenError{Err: fmt.Errorf("symlink files are not supported")}
+	}
+
+	content, err := os.ReadFile(absFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return project.IncludeFile{}, &common.ProjectFileNotFoundError{}
+		}
+		return project.IncludeFile{}, fmt.Errorf("failed to read file: %w", err)
+	}
+	if projects.IsBinaryProjectFileContent(content) {
+		return project.IncludeFile{}, &common.ProjectFileBadRequestError{Err: fmt.Errorf("binary files are not supported")}
+	}
+
+	return project.IncludeFile{
+		Path:         absFilePath,
+		RelativePath: relativePath,
+		Content:      string(content),
+	}, nil
+}
+
 func (s *ProjectService) enrichWithIncludeFiles(ctx context.Context, projectPath string, resp *project.Details) {
 	composeFile, detectErr := projects.DetectComposeFile(projectPath)
 	if detectErr == nil {
@@ -684,14 +761,13 @@ func (s *ProjectService) enrichWithIncludeFiles(ctx context.Context, projectPath
 		envLoader := projects.NewEnvLoader(projectsDirectory, filepath.Dir(composeFile), autoInjectEnv)
 		envMap, _, _ := envLoader.LoadEnvironment(ctx)
 
-		includes, parseErr := projects.ParseIncludes(composeFile, envMap)
+		includes, parseErr := projects.ParseIncludes(composeFile, envMap, false)
 		if parseErr == nil {
 			var includeFiles []project.IncludeFile
 			for _, inc := range includes {
 				includeFiles = append(includeFiles, project.IncludeFile{
 					Path:         inc.Path,
 					RelativePath: inc.RelativePath,
-					Content:      inc.Content,
 				})
 			}
 			resp.IncludeFiles = includeFiles

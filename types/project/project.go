@@ -19,8 +19,16 @@ type IncludeFile struct {
 
 	// Content is the file content.
 	//
+	// Required: false
+	Content string `json:"content,omitempty"`
+}
+
+// FileContentRequest requests the contents of a single project-related file.
+type FileContentRequest struct {
+	// RelativePath is the path to the file relative to the project.
+	//
 	// Required: true
-	Content string `json:"content"`
+	RelativePath string `json:"relativePath" query:"relativePath" binding:"required"`
 }
 
 // CreateProject is used to create a new project.
@@ -237,6 +245,11 @@ type Details struct {
 	//
 	// Required: false
 	ComposeContent string `json:"composeContent,omitempty"`
+
+	// ComposeFileName is the detected compose file name for the project.
+	//
+	// Required: false
+	ComposeFileName string `json:"composeFileName,omitempty"`
 
 	// EnvContent is the environment file content.
 	//

@@ -334,4 +334,3 @@ func (fw *Watcher) isWatchableDirectory(path string) bool {
 
 	return resolvedInfo.IsDir()
 }
-

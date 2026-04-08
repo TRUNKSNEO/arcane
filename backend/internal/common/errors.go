@@ -722,6 +722,28 @@ func (e *ProjectDetailsError) Error() string {
 	return fmt.Sprintf("Failed to get project details: %v", e.Err)
 }
 
+type ProjectFileBadRequestError struct {
+	Err error
+}
+
+func (e *ProjectFileBadRequestError) Error() string {
+	return fmt.Sprintf("Invalid project file request: %v", e.Err)
+}
+
+type ProjectFileForbiddenError struct {
+	Err error
+}
+
+func (e *ProjectFileForbiddenError) Error() string {
+	return fmt.Sprintf("Forbidden project file path: %v", e.Err)
+}
+
+type ProjectFileNotFoundError struct{}
+
+func (e *ProjectFileNotFoundError) Error() string {
+	return "Project file not found"
+}
+
 type ProjectRedeploymentError struct {
 	Err error
 }

@@ -35,7 +35,7 @@ type IncludeFile struct {
 
 // ParseIncludes reads a compose file and extracts all include directives.
 // envMap is used to expand variables (e.g., ${VAR}) in include paths.
-func ParseIncludes(composeFilePath string, envMap EnvMap) ([]IncludeFile, error) {
+func ParseIncludes(composeFilePath string, envMap EnvMap, includeContent bool) ([]IncludeFile, error) {
 	content, err := os.ReadFile(composeFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read compose file: %w", err)
@@ -58,12 +58,12 @@ func ParseIncludes(composeFilePath string, envMap EnvMap) ([]IncludeFile, error)
 	switch v := includes.(type) {
 	case []any:
 		for _, item := range v {
-			if include, err := parseIncludeItemInternal(item, composeDir, envMap); err == nil {
+			if include, err := parseIncludeItemInternal(item, composeDir, envMap, includeContent); err == nil {
 				includeFiles = append(includeFiles, include)
 			}
 		}
 	case string:
-		if include, err := parseIncludeItemInternal(v, composeDir, envMap); err == nil {
+		if include, err := parseIncludeItemInternal(v, composeDir, envMap, includeContent); err == nil {
 			includeFiles = append(includeFiles, include)
 		}
 	}
@@ -71,7 +71,7 @@ func ParseIncludes(composeFilePath string, envMap EnvMap) ([]IncludeFile, error)
 	return includeFiles, nil
 }
 
-func parseIncludeItemInternal(item any, baseDir string, envMap EnvMap) (IncludeFile, error) {
+func parseIncludeItemInternal(item any, baseDir string, envMap EnvMap, includeContent bool) (IncludeFile, error) {
 	var includePath string
 
 	switch v := item.(type) {
@@ -101,16 +101,18 @@ func parseIncludeItemInternal(item any, baseDir string, envMap EnvMap) (IncludeF
 	fullPath = filepath.Clean(fullPath)
 
 	var content string
-	fileContent, err := os.ReadFile(fullPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// File doesn't exist yet - return empty content so it can be created
-			content = "# This file will be created when you save changes\nservices:\n"
+	if includeContent {
+		fileContent, err := os.ReadFile(fullPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				// File doesn't exist yet - return empty content so it can be created
+				content = "# This file will be created when you save changes\nservices:\n"
+			} else {
+				return IncludeFile{}, fmt.Errorf("failed to read include file %s: %w", includePath, err)
+			}
 		} else {
-			return IncludeFile{}, fmt.Errorf("failed to read include file %s: %w", includePath, err)
+			content = string(fileContent)
 		}
-	} else {
-		content = string(fileContent)
 	}
 
 	relativePath := includePath

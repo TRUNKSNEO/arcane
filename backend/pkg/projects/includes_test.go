@@ -27,7 +27,7 @@ func TestParseIncludes_NormalizesRelativePaths(t *testing.T) {
 	requireNoError(os.WriteFile(includePath, []byte("services: {}\n"), 0o600))
 	requireNoError(os.WriteFile(composePath, []byte("include:\n  - ./includes/config.yaml\n"), 0o600))
 
-	includes, err := ParseIncludes(composePath, nil)
+	includes, err := ParseIncludes(composePath, nil, false)
 	requireNoError(err)
 
 	if len(includes) != 1 {
