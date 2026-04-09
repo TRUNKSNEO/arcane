@@ -387,7 +387,11 @@
 				}
 
 				applyProjectDetailsToEditor(savedProject, 'saved');
-				await syncProjectQueries(savedProject);
+				// Pass the enriched project (with locally-preserved include file
+				// content) to the query cache so that any reactive re-read after
+				// save doesn't revert the editor to the lazy-loaded (content-less)
+				// server response.
+				await syncProjectQueries(withLoadedProjectFileContent(savedProject));
 				toast.success(m.common_update_success({ resource: m.project() }));
 			}
 		});
