@@ -17,7 +17,6 @@ import (
 	humamiddleware "github.com/getarcaneapp/arcane/backend/internal/huma/middleware"
 	"github.com/getarcaneapp/arcane/backend/internal/models"
 	"github.com/getarcaneapp/arcane/backend/internal/services"
-	httputils "github.com/getarcaneapp/arcane/backend/pkg/utils/httpx"
 	"github.com/gin-gonic/gin"
 	glsqlite "github.com/glebarez/sqlite"
 	"github.com/golang-jwt/jwt/v5"
@@ -26,7 +25,7 @@ import (
 )
 
 func TestFetchTemplateRegistryRequiresAuthentication(t *testing.T) {
-	router := newTemplateFetchTestRouter(t, http.DefaultClient, httputils.DefaultLookupIP)
+	router := newTemplateFetchTestRouter(t, http.DefaultClient)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/templates/fetch?url=http://example.com/registry.json", nil)
 	rec := httptest.NewRecorder()
@@ -44,8 +43,8 @@ func TestFetchTemplateRegistryAuthenticatedSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, lookupIP, registryURL := makeTemplateFetchRemote(t, server)
-	router := newTemplateFetchTestRouter(t, client, lookupIP)
+	client, registryURL := makeTemplateFetchRemote(t, server)
+	router := newTemplateFetchTestRouter(t, client)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/templates/fetch?url="+url.QueryEscape(registryURL), nil)
 	req.Header.Set("Authorization", "Bearer "+makeTemplateFetchToken(t, "test-secret", "user-1", "alice"))
@@ -59,7 +58,7 @@ func TestFetchTemplateRegistryAuthenticatedSuccess(t *testing.T) {
 }
 
 func TestFetchTemplateRegistryAuthenticatedUnsafeTargetIsSanitized(t *testing.T) {
-	router := newTemplateFetchTestRouter(t, http.DefaultClient, httputils.DefaultLookupIP)
+	router := newTemplateFetchTestRouter(t, http.DefaultClient)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/templates/fetch?url="+url.QueryEscape("http://127.0.0.1:8080/registry.json"), nil)
 	req.Header.Set("Authorization", "Bearer "+makeTemplateFetchToken(t, "test-secret", "user-1", "alice"))
@@ -74,7 +73,7 @@ func TestFetchTemplateRegistryAuthenticatedUnsafeTargetIsSanitized(t *testing.T)
 	require.NotContains(t, rec.Body.String(), "Invalid JSON response")
 }
 
-func newTemplateFetchTestRouter(t *testing.T, httpClient *http.Client, lookupIP httputils.LookupIPFunc) *gin.Engine {
+func newTemplateFetchTestRouter(t *testing.T, httpClient *http.Client) *gin.Engine {
 	t.Helper()
 
 	originalDir, err := os.Getwd()
@@ -98,7 +97,7 @@ func newTemplateFetchTestRouter(t *testing.T, httpClient *http.Client, lookupIP 
 	require.NoError(t, err)
 
 	authService := services.NewAuthService(userService, nil, nil, "test-secret", &config.Config{})
-	templateService := services.NewTemplateService(context.Background(), nil, httpClient, nil).WithLookupIPResolver(lookupIP)
+	templateService := services.NewTemplateService(context.Background(), nil, httpClient, nil)
 
 	router := gin.New()
 	apiGroup := router.Group("/api")
@@ -146,7 +145,7 @@ func makeTemplateFetchToken(t *testing.T, secret string, userID, username string
 	return signed
 }
 
-func makeTemplateFetchRemote(t *testing.T, server *httptest.Server) (*http.Client, httputils.LookupIPFunc, string) {
+func makeTemplateFetchRemote(t *testing.T, server *httptest.Server) (*http.Client, string) {
 	t.Helper()
 
 	parsedURL, err := url.Parse(server.URL)
@@ -164,9 +163,5 @@ func makeTemplateFetchRemote(t *testing.T, server *httptest.Server) (*http.Clien
 		Timeout:   10 * time.Second,
 	}
 
-	lookupIP := func(ctx context.Context, host string) ([]net.IP, error) {
-		return []net.IP{net.ParseIP("93.184.216.34")}, nil
-	}
-
-	return client, lookupIP, "http://templates.example.test:" + parsedURL.Port() + "/registry.json"
+	return client, "http://93.184.216.34:" + parsedURL.Port() + "/registry.json"
 }

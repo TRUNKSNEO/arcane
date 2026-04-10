@@ -96,12 +96,6 @@ func NewTemplateService(ctx context.Context, db *database.DB, httpClient *http.C
 	return service
 }
 
-func (s *TemplateService) WithLookupIPResolver(lookupIP httputils.LookupIPFunc) *TemplateService {
-	s.lookupIP = lookupIP
-	s.safeHTTPClient = s.newSafeHTTPClientInternal()
-	return s
-}
-
 func (s *TemplateService) ensureRemoteTemplatesLoaded(ctx context.Context) error {
 	s.remoteMu.Lock()
 

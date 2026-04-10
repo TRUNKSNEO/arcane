@@ -169,7 +169,7 @@ func projectScanSkipDirectorySetInternal(skipDirectories string) map[string]bool
 	}
 
 	dirs := map[string]bool{}
-	for _, dir := range strings.Split(skipDirectories, ",") {
+	for dir := range strings.SplitSeq(skipDirectories, ",") {
 		dir = strings.TrimSpace(dir)
 		if dir != "" {
 			dirs[dir] = true

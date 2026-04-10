@@ -79,7 +79,7 @@ func TestWatcher_StartIgnoresNonProjectFileWritesInsideProjectDir(t *testing.T) 
 	// Simulate ESPHome / PlatformIO churning through build artifacts inside a
 	// watched project tree. None of these writes touch a compose or env file,
 	// so the sync callback must never fire.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		require.NoError(t, os.WriteFile(filepath.Join(buildDir, "artifact.bin"), []byte{0x01, 0x02, 0x03}, 0o644))
 	}
 
