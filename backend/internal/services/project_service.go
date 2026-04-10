@@ -558,7 +558,7 @@ func (s *ProjectService) GetProjectServices(ctx context.Context, projectID strin
 
 	composeProject, composeFileFullPath, derr := s.loadComposeProjectForProjectInternal(ctx, projectFromDb)
 	if derr != nil {
-		return []ProjectServiceInfo{}, fmt.Errorf("no compose file found in project directory: %s", projectFromDb.Path)
+		return []ProjectServiceInfo{}, fmt.Errorf("failed to load compose project in %s: %w", projectFromDb.Path, derr)
 	}
 
 	projectsDirectory, projectsDirErr := s.getProjectsDirectoryInternal(ctx)
@@ -1190,7 +1190,7 @@ func (s *ProjectService) DeployProject(ctx context.Context, projectID string, us
 
 	project, _, derr := s.loadComposeProjectForProjectInternal(ctx, projectFromDb)
 	if derr != nil {
-		return fmt.Errorf("no compose file found in project directory: %s", projectFromDb.Path)
+		return fmt.Errorf("failed to load compose project in %s: %w", projectFromDb.Path, derr)
 	}
 
 	if err := s.updateProjectStatusInternal(ctx, projectID, models.ProjectStatusDeploying); err != nil {
@@ -1430,7 +1430,7 @@ func (s *ProjectService) BuildProjectServices(ctx context.Context, projectID str
 
 	project, _, derr := s.loadComposeProjectForProjectInternal(ctx, projectFromDb)
 	if derr != nil {
-		return fmt.Errorf("no compose file found in project directory: %s", projectFromDb.Path)
+		return fmt.Errorf("failed to load compose project in %s: %w", projectFromDb.Path, derr)
 	}
 
 	return s.buildProjectServicesInternal(ctx, projectID, project, options, progressWriter, user)
