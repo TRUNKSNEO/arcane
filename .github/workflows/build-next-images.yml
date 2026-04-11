@@ -10,14 +10,11 @@ concurrency:
 permissions:
   contents: read
   packages: write
-  attestations: write
   id-token: write
-  artifact-metadata: write
 
 jobs:
   build-next-images:
-    if: ${{ github.repository_owner != 'getarcaneapp' && github.actor !=
-      'getarcaneappbot' }}
+    if: ${{ github.repository_owner != 'getarcaneapp' && github.actor != 'getarcaneappbot' }}
     runs-on: depot-ubuntu-24.04-8
 
     env:
@@ -129,13 +126,6 @@ jobs:
           sbom: true
           provenance: true
 
-      - name: Container image attestation (manager)
-        uses: actions/attest@v4
-        with:
-          subject-name: ${{ env.MANAGER_IMAGE_NAME }}
-          subject-digest: ${{ steps.manager-build.outputs.digest }}
-          push-to-registry: true
-
       - name: Agent image metadata
         id: agent-meta
         uses: docker/metadata-action@v6
@@ -173,10 +163,3 @@ jobs:
             REVISION=${{ github.sha }}
           sbom: true
           provenance: true
-
-      - name: Container image attestation (agent)
-        uses: actions/attest@v4
-        with:
-          subject-name: ${{ env.AGENT_IMAGE_NAME }}
-          subject-digest: ${{ steps.agent-build.outputs.digest }}
-          push-to-registry: true
