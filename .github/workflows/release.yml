@@ -72,10 +72,11 @@ jobs:
         uses: sigstore/cosign-installer@v4.1.1
 
       - name: Fetch Sigstore identity token
+        id: sigstore-token
         run: |
           RESPONSE="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore")"
           TOKEN="$(jq -r '.value' <<<"$RESPONSE")"
-          echo "SIGSTORE_ID_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Manager image metadata
         id: manager-meta
@@ -186,6 +187,7 @@ jobs:
           args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.ARCANE_BOT_TOKEN }}
+          SIGSTORE_ID_TOKEN: ${{ steps.sigstore-token.outputs.token }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           DISCORD_WEBHOOK_ID: ${{ secrets.DISCORD_WEBHOOK_ID }}
           DISCORD_WEBHOOK_TOKEN: ${{ secrets.DISCORD_WEBHOOK_TOKEN }}
