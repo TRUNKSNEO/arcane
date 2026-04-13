@@ -71,6 +71,12 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.1
 
+      - name: Fetch Sigstore identity token
+        run: |
+          RESPONSE="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore")"
+          TOKEN="$(jq -r '.value' <<<"$RESPONSE")"
+          echo "SIGSTORE_ID_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
       - name: Manager image metadata
         id: manager-meta
         uses: docker/metadata-action@v6

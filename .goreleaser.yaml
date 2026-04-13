@@ -163,6 +163,8 @@ binary_signs:
       - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
+    env:
+      - SIGSTORE_ID_TOKEN={{ .Env.SIGSTORE_ID_TOKEN }}
     output: true
 
 signs:
@@ -175,6 +177,8 @@ signs:
       - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
+    env:
+      - SIGSTORE_ID_TOKEN={{ .Env.SIGSTORE_ID_TOKEN }}
     output: true
 
 nfpms:
@@ -346,6 +350,8 @@ docker_signs:
       - sign
       - "${artifact}@${digest}"
       - "--yes"
+    env:
+      - SIGSTORE_ID_TOKEN={{ .Env.SIGSTORE_ID_TOKEN }}
     output: true
 
 blobs:

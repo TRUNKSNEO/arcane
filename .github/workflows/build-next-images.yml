@@ -76,6 +76,12 @@ jobs:
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Fetch Sigstore identity token
+        run: |
+          RESPONSE="$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore")"
+          TOKEN="$(jq -r '.value' <<<"$RESPONSE")"
+          echo "SIGSTORE_ID_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 #v7.0.0
         with:
