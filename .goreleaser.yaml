@@ -160,11 +160,10 @@ binary_signs:
     signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
+      - "--identity-token={{ index .Env \"SIGSTORE_ID_TOKEN\" }}"
       - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
-    env:
-      - SIGSTORE_ID_TOKEN={{ index .Env "SIGSTORE_ID_TOKEN" }}
     output: true
 
 signs:
@@ -174,11 +173,10 @@ signs:
     signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
+      - "--identity-token={{ index .Env \"SIGSTORE_ID_TOKEN\" }}"
       - "--bundle=${signature}"
       - "${artifact}"
       - "--yes"
-    env:
-      - SIGSTORE_ID_TOKEN={{ index .Env "SIGSTORE_ID_TOKEN" }}
     output: true
 
 nfpms:
@@ -348,10 +346,9 @@ docker_signs:
       - arcane-agent-next-distroless
     args:
       - sign
+      - "--identity-token={{ index .Env \"SIGSTORE_ID_TOKEN\" }}"
       - "${artifact}@${digest}"
       - "--yes"
-    env:
-      - SIGSTORE_ID_TOKEN={{ index .Env "SIGSTORE_ID_TOKEN" }}
     output: true
 
 blobs:
