@@ -26,6 +26,7 @@
 	const queryClient = useQueryClient();
 
 	const locales: Record<string, string> = {
+		da: 'Dansk',
 		de: 'Deutsch',
 		el: 'Ελληνικά',
 		en: 'English',
@@ -41,8 +42,7 @@
 		sv: 'Svenska',
 		uk: 'Українська',
 		vi: 'Tiếng Việt',
-		'zh-CN': '中文',
-		'zh-TW': '繁體中文'
+		'zh-CN': '中文'
 	};
 
 	const updateLocaleMutation = createMutation(() => ({
