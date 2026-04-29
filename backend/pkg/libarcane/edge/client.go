@@ -366,6 +366,7 @@ func (c *TunnelClient) handleRequest(ctx context.Context, msg *TunnelMessage) {
 
 	reqCtx, cancel := context.WithTimeout(ctx, c.requestTimeout)
 	defer cancel()
+	reqCtx = withInternalTunnelRequestInternal(reqCtx)
 
 	slog.DebugContext(reqCtx, "Processing tunneled request", "id", msg.ID, "method", msg.Method, "path", msg.Path, "bodyLength", len(msg.Body))
 
@@ -447,6 +448,7 @@ func (c *TunnelClient) isGRPCConnectionInternal() bool {
 func (c *TunnelClient) handleRequestStreaming(ctx context.Context, msg *TunnelMessage) {
 	reqCtx, cancel := context.WithTimeout(ctx, c.requestTimeout)
 	defer cancel()
+	reqCtx = withInternalTunnelRequestInternal(reqCtx)
 
 	slog.DebugContext(reqCtx, "Processing tunneled request (streaming)", "id", msg.ID, "method", msg.Method, "path", msg.Path, "bodyLength", len(msg.Body))
 

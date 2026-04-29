@@ -125,6 +125,13 @@ func (s *grpcResponseState) handleResponse(method string, incoming *TunnelMessag
 		s.respHeaders = incoming.Headers
 	}
 
+	if s.respHeaders["X-Arcane-Tunnel-Stream"] == "1" {
+		if len(incoming.Body) > 0 {
+			s.respBody.Write(incoming.Body)
+		}
+		return false, 0, nil, nil
+	}
+
 	if len(incoming.Body) > 0 {
 		s.respBody.Write(incoming.Body)
 		return true, s.status, stripInternalTunnelHeaders(s.respHeaders), s.respBody.Bytes()
